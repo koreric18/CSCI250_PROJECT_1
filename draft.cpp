@@ -8,12 +8,40 @@ class parseInput { //director
         void setBuilder () {
 
         }
-        void parse(userInput);
+        void parse();     
+    }
+    */
     private:
         Builder *builder; 
 };
 
-class scriptParser { //?
+void parseInput:: parse() {
+    ifstream myfile;
+    myfile.open("script1.txt");
+    string line;
+    while (!getline(myfile,line).eof()) {
+        if (line.find("mkdir")) {
+            scriptParser.makeDirectory(line);
+        }
+        else if (line.find("create")) {
+            scriptParser.createFile(line);
+        }
+        else if (line.find("cd")) {
+            scriptParser.changeDirectory(line);
+        }
+        else if (line.find("del")) {
+            scriptParser.deletefd(line);
+        }
+        else if (line.find("size")) {
+            scriptParser.size(line);
+        }
+        else if (line.find("ls")) {
+            scriptParser.ls(line);
+        }
+    }
+}
+
+class scriptParser { // builder
     virtual void makeDirectory(dirname);
     virtual void createFile(filname, fsize);
     virtual void changeDirectory(dirname);
@@ -46,3 +74,6 @@ class fileSystem: public scriptParser {
 
         }
 } 
+int main() {
+//singleton, should access instance of class through its pointer and not the actual instance
+}
