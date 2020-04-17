@@ -1,18 +1,19 @@
 #include <iostream>
+#include <string>
+#include <vector>
 
 using namespace std;
 
 // My parser will retrieve the commands and constructs object using Builder interface
 class parseInput { //director
+    private:
+        scriptParser* builder;
     public: 
-        void setBuilder () {
-
+        void setBuilder (scriptParser* newBuilder) {
+            builder = newBuilder;
         }
         void parse();     
     }
-    */
-    private:
-        Builder *builder; 
 };
 
 void parseInput:: parse() {
@@ -42,38 +43,54 @@ void parseInput:: parse() {
 }
 
 class scriptParser { // builder
-    virtual void makeDirectory(dirname);
-    virtual void createFile(filname, fsize);
-    virtual void changeDirectory(dirname);
-    virtual void deletefd(fdname);
-    virtual void size(fdname);
-    virtual void list(fdname);
+    string name;
+    int size;
+    virtual void makeDirectory(name);
+    virtual void createFile(name, size);
+    virtual void changeDirectory(name);
+    virtual void deletefd(name);
+    virtual void size(name);
+    virtual void list(name);
 };
 
 class fileSystem: public scriptParser {
     public:
-        fileSystem() {
+        /*fileSystem() {
+
+        }*/
+        void makeDirectory(name){
+            (root->children).push_back(newNode(name));
+        }
+        /*void createFile(name, size){
 
         }
-        void makeDirectory(dirname){
+        void changeDirectory(name) {
 
         }
-        void createFile(filname, fsize){
+        void deletefd(name) {
 
         }
-        void changeDirectory(dirname) {
+        void size(name) {
 
         }
-        void deletefd(fdname) {
+        void list(name) {
 
-        }
-        void size(fdname) {
-
-        }
-        void list(fdname) {
-
-        }
+        }*/
 } 
+struct node {
+    string name;
+    vector<node *> children;
+    struct node *root;
+};
+
+node *newnode(string name) {
+    node *tmp = new node;
+    tmp -> key = key; 
+    return tmp;
+} 
+
 int main() {
 //singleton, should access instance of class through its pointer and not the actual instance
+    parseInput parser;
+    parser.parse();
 }
