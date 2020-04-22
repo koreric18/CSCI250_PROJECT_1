@@ -30,6 +30,10 @@ struct node *newfile(string name, int size) {
     tmp -> isDirectory = false;
     return (tmp);
 }
+
+struct node *root = newdirectory("root");
+node *curr = root; // current pointer to track where user is at
+
 class scriptParser { // builder
     public:
         int size;
@@ -37,16 +41,17 @@ class scriptParser { // builder
         virtual void makeDirectory(string name){}
         virtual void createFile(string name, int filesize){}
         virtual void changeDirectory(string name){}
+        /* Replacing with visitor implementation...
         virtual void deletefd(string name){}
         virtual void fdsize(string name){}
-        virtual void list(string name){}
-        struct node *root = newdirectory("root");
+        virtual void list(string name){}*/
+        virtual void accept (class Visitor*) = 0;
     protected: 
-    node *curr = root; // current pointer to track where user is at
 };
 
 class fileSystem: public scriptParser {
     public:
+        void accept (Visitor*);
         void makeDirectory(string name){
             (curr->children).push_back(newdirectory(name));
             if (curr == root) {
@@ -85,10 +90,22 @@ class fileSystem: public scriptParser {
                         cout << "You're already in the root directory!" << endl;
                     }   
                 }                
-        }     
-        void deletefd(string name) { // currently deletes file or directory if its in the path
+        }  
+};
+
+class Visitor {
+    public:
+        virtual void visit(fileSystem*) = 0;
+};
+
+class deletefd : public Visitor {
+    public:
+        string fdname;
+        void visit (fileSystem*) {
+            cout<< "hi you're passing fdname: " << fdname << endl;
+        // delete fd algorithm??
             for (int i =0; i < curr->children.size(); ++i) {
-                if (curr->children.at(i)->fname == name) {
+                if (curr->children.at(i)->fname == fdname) {
                     curr->children.erase(curr->children.begin() + i);
                 }
             }
@@ -96,36 +113,80 @@ class fileSystem: public scriptParser {
                 cout << curr->children.at(i)->fname << endl;
             }
         }
-        void fdsize(string name) { // still need to do for size of all files
+};
+
+class fdsize : public Visitor {
+    public: 
+        string fdname;
+        void visit (fileSystem*) {
             for (int i =0; i < curr->children.size(); ++i) {
-                if (curr->children.at(i)->fname == name && curr->children.at(i)->isDirectory == false) {
-                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize;
+                if (curr->children.at(i)->fname == fdname && curr->children.at(i)->isDirectory == false) {
+                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize << endl;
                 }
-                else if ((curr->children.at(i)->fname == name && curr->children.at(i)->isDirectory == true) || name == "root") {
+                else if (curr->children.at(i)->isDirectory == false) { // catching files in directories that are not in other directories
+                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize << endl;
+                }
+                else if ((curr->children.at(i)->fname == fdname && curr->children.at(i)->isDirectory == true) || fdname == "root") {
                     cout << "hello" <<endl;
                     for (int j = 0; j < curr->children.at(i)->children.size(); ++j) {
                         if (curr->children.at(i)->children.at(j)->isDirectory == true) {
                             cout << curr->children.at(i)->children.at(j)->fname << endl;
                         }
-                        else if (curr->children.at(i)->children.at(j)->isDirectory != true) {
+                        else if (curr->children.at(i)->children.at(j)->isDirectory == false) {
                             cout << curr->children.at(i)->children.at(j) ->fname << " size: " << curr->children.at(i)->children.at(j)->fsize << endl;
                         }
                     }
                 }
             }
         }
-/*        void list(string name) { 
-            if (name == "") {
-                for (int i = 0; i < parent->children.size(); ++i){
-                    cout << parent->children.at(i)->fname << "size: " << parent->children.at(i)->size << endl;
-                }
-            }  
-        }*/
 };
+
+class list: public Visitor {
+    public:
+        string fdname;
+        void visit(fileSystem*) {
+            for (int i =0; i < curr->children.size(); ++i) { 
+                // first case - will print name of a file and its size.
+                if (curr->children.at(i)->fname == fdname && curr->children.at(i)->isDirectory == false) {
+                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize << endl;
+                }
+                // if no argument is given
+                else if (fdname == ""){
+                    // list all files in the current directory
+                    if (curr->children.at(i)->isDirectory == false) { 
+                        cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize << endl;
+                    }
+                    // lists all directories in the current directory
+                    else if (curr->children.at(i)->isDirectory == true) { 
+                        cout << curr->children.at(i)->fname << endl;
+                    }
+                }
+                // list all files with the given directory
+                else if (curr->children.at(i)->fname == fdname && curr->children.at(i)->isDirectory == true) {
+                    for (int j = 0; j < curr->children.at(i)->children.size(); ++j) {
+                        if (curr->children.at(i)->children.at(j)->isDirectory == true) {
+                            cout << "Directory: " << curr->children.at(i)->children.at(j)->fname << " ";
+                        }
+                        else if (curr->children.at(i)->children.at(j)->isDirectory == false) {
+                            cout << "File : " << curr->children.at(i)->children.at(j) ->fname << " size: " << curr->children.at(i)->children.at(j)->fsize;
+                        }
+                        cout << endl;
+                    }
+                }
+            }
+    }
+};
+
+void fileSystem::accept(Visitor *v) {
+    v->visit(this);
+}
 
 class Director { //director
        scriptParser *builder;
     public: 
+        deletefd deleteOperation;
+        fdsize sizeOperation;
+        list lsOperation;
         void setBuilder (scriptParser *newBuilder) {
             builder = newBuilder;
             ifstream myfile;
@@ -151,13 +212,19 @@ class Director { //director
                         builder->changeDirectory(tempname);
                     }
                     else if (command == "del") {
-                        builder->deletefd(tempname);
+                        //builder->deletefd(tempname);
+                        deleteOperation.fdname=tempname;
+                        builder->accept(&deleteOperation);
                     }
                     else if (command == "size") {
-                        builder->fdsize(tempname);
+                        //builder->fdsize(tempname);
+                        sizeOperation.fdname=tempname;
+                        builder->accept(&sizeOperation);
                     }
-                    else if (line.find("ls")) {
-                        builder->list(tempname);
+                    else if (command == "ls") {
+                        //builder->list(tempname);
+                        lsOperation.fdname=tempname;
+                        builder->accept(&lsOperation);
                     }
                 }
             myfile.close();
