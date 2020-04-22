@@ -12,12 +12,14 @@ struct node {
     int fsize;
     vector<node *> children;
     struct node *parent;
+    bool isDirectory;
 };
 
 struct node *newdirectory(string name) {
     struct node *tmp = new struct node(); // declaring and allocating new file
     tmp -> fname = name; 
     tmp -> parent = NULL;
+    tmp -> isDirectory = true;
     return (tmp);
 }
 
@@ -25,6 +27,7 @@ struct node *newfile(string name, int size) {
     struct node *tmp = new struct node();
     tmp -> fname = name;
     tmp -> fsize = size;
+    tmp -> isDirectory = false;
     return (tmp);
 }
 class scriptParser { // builder
@@ -48,59 +51,70 @@ class fileSystem: public scriptParser {
             (curr->children).push_back(newdirectory(name));
             if (curr == root) {
                 for (int i = 0; i < curr->children.size(); ++i) {
-                    curr->children.at
+                    curr->children.at(i)->parent = root;
                 }
             }
+            cout << name << " has been added." << endl;
         }
         void createFile(string name, int filesize){
             (curr->children).push_back(newfile(name, filesize));
-            for (int i = 0; i < curr->children.size(); ++i) {
+            /*for (int i = 0; i < curr->children.size(); ++i) {
                 cout <<curr->children.at(i)->fname << " size: " << curr->children.at(i)-> fsize << endl;
-            }
+            }*/
 
         }
-        void changeDirectory(string name) { 
+        void changeDirectory(string name) { //
             // second case, cd ..., set curr to a child
+            cout<< "you're attempting to change into: " << name << endl;
             if (name != "") {
                 for (int i =0; i < curr->children.size(); ++i) {
                     if (curr->children.at(i)->fname == name) {
-                        curr->children.at(i);
                         curr->children.at(i)->parent = curr;
+                        curr = curr->children.at(i);
+                        cout << "Your directory has been changed to: " << curr->fname << endl;  
+                        break;
                     }
                 }
             }
-            else { // going back to parents directory
-                for (int i =0; i < curr->children.size(); ++i) {
-                    if (curr->children.at(i)->fsize == 0) {
-                        curr = curr->children.at(i)->parent;
+            else { // going back to parents directory,
+                    if (curr != root) {
+                        curr = curr->parent;
+                        cout << "Your directory has been changed back to: " << curr->fname << endl;
                     }
-                };
-                
-                // set parent to grandparent
-                
-            }
-        }
-/*      CSCI           PHYSICS
-        150 250         200
-        2020
+                    else {
+                        cout << "You're already in the root directory!" << endl;
+                    }   
+                }                
+        }     
         void deletefd(string name) { // currently deletes file or directory if its in the path
-            for (int i =0; i < parent->children.size(); ++i) {
-                if (parent->children.at(i)->fname == name) {
-                    parent->children.erase(parent->children.begin() + i);
+            for (int i =0; i < curr->children.size(); ++i) {
+                if (curr->children.at(i)->fname == name) {
+                    curr->children.erase(curr->children.begin() + i);
                 }
+            }
+            for (int i =0; i < curr->children.size(); ++i) {
+                cout << curr->children.at(i)->fname << endl;
             }
         }
         void fdsize(string name) { // still need to do for size of all files
-            for (int i =0; i < parent->children.size(); ++i) {
-                if (parent->children.at(i)->fname == name) {
-                    //if (parent->children.at(i).size() > 0) {
-                    //    for (parent->children)
-                    //}
-                    cout << "Size: " << parent->children.at(i)->size;
+            for (int i =0; i < curr->children.size(); ++i) {
+                if (curr->children.at(i)->fname == name && curr->children.at(i)->isDirectory == false) {
+                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize;
+                }
+                else if ((curr->children.at(i)->fname == name && curr->children.at(i)->isDirectory == true) || name == "root") {
+                    cout << "hello" <<endl;
+                    for (int j = 0; j < curr->children.at(i)->children.size(); ++j) {
+                        if (curr->children.at(i)->children.at(j)->isDirectory == true) {
+                            cout << curr->children.at(i)->children.at(j)->fname << endl;
+                        }
+                        else if (curr->children.at(i)->children.at(j)->isDirectory != true) {
+                            cout << curr->children.at(i)->children.at(j) ->fname << " size: " << curr->children.at(i)->children.at(j)->fsize << endl;
+                        }
+                    }
                 }
             }
         }
-        void list(string name) { 
+/*        void list(string name) { 
             if (name == "") {
                 for (int i = 0; i < parent->children.size(); ++i){
                     cout << parent->children.at(i)->fname << "size: " << parent->children.at(i)->size << endl;
@@ -117,19 +131,19 @@ class Director { //director
             ifstream myfile;
             string line;
             stringstream substring;
-            string command, tempname;
             myfile.open("script1.txt");
             if (myfile) {
                 cout<< "File is being read." << endl;
                 while (getline(myfile,line)){//.eof()) {
                     substring.clear();
+                    string command, tempname;
+                    int filesize = 0;
                     substring << line;
                     substring >> command >> tempname;
                     if (command == "mkdir") {
                         builder->makeDirectory(tempname);
                     }
                     else if (command == "create") {
-                        int filesize;
                         substring >> filesize;
                         builder->createFile(tempname, filesize);
                     }
@@ -163,6 +177,5 @@ int main() {
     dir.setBuilder(&myfiles);
 
     //Build my file system...
-    cout << "Your directory " << endl;
     return 0;
 }
