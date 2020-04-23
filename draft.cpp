@@ -98,7 +98,7 @@ class Visitor {
         virtual void visit(fileSystem*) = 0;
 };
 
-class deletefd : public Visitor {
+class deletefd : public Visitor { // TO DO: Delete file AND cascade delete 
     public:
         string fdname;
         void visit (fileSystem*) {
@@ -141,7 +141,7 @@ class fdsize : public Visitor {
         }
 };
 
-class list: public Visitor {
+class list : public Visitor {
     public:
         string fdname;
         void visit(fileSystem*) {
@@ -177,6 +177,34 @@ class list: public Visitor {
     }
 };
 
+class resize : public Visitor {
+    public:
+        string fdname;
+        int newsize;
+        void visit(fileSystem*) {
+            for (int i =0; i < curr->children.size(); ++i) { 
+                if (curr->children.at(i)->fname == fdname && curr->children.at(i)->isDirectory == false) {
+                    curr->children.at(i)->fsize = newsize;
+                    cout << curr->children.at(i)->fname << " Size: " << curr->children.at(i)->fsize << endl;
+                }
+            }
+        }
+
+};
+/* My proxy pattern implementation currently uses myExit as a wrapper class 
+   FOR the deletetion operation class. The user will think they are deleting files
+   but the deletetion of files do not occur until myExit is called.
+
+*/
+class myExit : public Visitor {
+    resize *deleteFiles;
+    public:
+        void visit(fileSystem*) {
+            // pretend to jump out...del doesnt occur until user uses exit command
+            // current idea: keep all nodes in a container and delete them when exit is called
+        }
+};
+
 void fileSystem::accept(Visitor *v) {
     v->visit(this);
 }
@@ -187,6 +215,8 @@ class Director { //director
         deletefd deleteOperation;
         fdsize sizeOperation;
         list lsOperation;
+        resize resizeOperation;
+        myExit exitOperation;
         void setBuilder (scriptParser *newBuilder) {
             builder = newBuilder;
             ifstream myfile;
@@ -212,19 +242,25 @@ class Director { //director
                         builder->changeDirectory(tempname);
                     }
                     else if (command == "del") {
-                        //builder->deletefd(tempname);
                         deleteOperation.fdname=tempname;
                         builder->accept(&deleteOperation);
                     }
                     else if (command == "size") {
-                        //builder->fdsize(tempname);
-                        sizeOperation.fdname=tempname;
+                        sizeOperation.fdname = tempname;
                         builder->accept(&sizeOperation);
                     }
                     else if (command == "ls") {
-                        //builder->list(tempname);
-                        lsOperation.fdname=tempname;
+                        lsOperation.fdname = tempname;
                         builder->accept(&lsOperation);
+                    }
+                    else if (command == "resize") {
+                        substring >>filesize;
+                        resizeOperation.newsize = filesize;
+                        resizeOperation.fdname = tempname;
+                        builder->accept(&resizeOperation);
+                    }
+                    else if (command == "exit") {
+
                     }
                 }
             myfile.close();
