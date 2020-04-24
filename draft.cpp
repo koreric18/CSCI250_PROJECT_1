@@ -3,6 +3,8 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <queue>
+
 
 using namespace std;
 
@@ -33,6 +35,29 @@ struct node *newfile(string name, int size) {
 
 struct node *root = newdirectory("root");
 node *curr = root; // current pointer to track where user is at
+
+vector <node*> traverseTree (node *root, string traverseString) {
+    queue < node *> myqueue;
+    myqueue.push(root);
+    while (!myqueue.empty()) {
+        int temp = myqueue.size();
+        while ( temp > 0 ) {
+            node *tmp = myqueue.front();
+            myqueue.pop();
+            if (tmp->fname != traverseString){
+                for (int i =0; i < tmp->children.size(); ++i) {
+                    if (tmp->children.at(i)->fname == traverseString) {
+                        return tmp->children;
+                    }
+                }
+            } 
+            for (int i =0; i < tmp->children.size(); ++i) {
+                myqueue.push(tmp->children.at(i));
+            }
+            --temp;
+        }
+    }
+}
 
 class scriptParser { // builder
     public:
@@ -96,22 +121,35 @@ class fileSystem: public scriptParser {
 class Visitor {
     public:
         virtual void visit(fileSystem*) = 0;
+    protected:
 };
 
-class deletefd : public Visitor { // TO DO: Delete file AND cascade delete 
+class deletefd : public Visitor { // TO DO: Delete file AND cascade delete, update to delete from filesTODelete vector.
     public:
         string fdname;
+        vector <string> filesToDelete;
+        void addFilestoDelete (string &myFiles) {
+            filesToDelete.push_back(myFiles);
+            cout << myFiles <<endl;
+        }
         void visit (fileSystem*) {
-            cout<< "hi you're passing fdname: " << fdname << endl;
-        // delete fd algorithm??
-            for (int i =0; i < curr->children.size(); ++i) {
-                if (curr->children.at(i)->fname == fdname) {
-                    curr->children.erase(curr->children.begin() + i);
+            cout<< "hi you're passing fdname: " << filesToDelete.size() << endl;
+            for (int i =0; i < filesToDelete.size(); ++i) {
+                cout << "Passed first for loop" << endl;
+                vector <node *> myPtr = traverseTree(root,filesToDelete.at(i));
+                for (int j=0; j< myPtr.size(); ++j) {
+                    cout << "Passed second for loop and traverse" << endl;
+                    if (myPtr.at(j)->fname == filesToDelete.at(i)) {
+                        cout << "Found string to delete: " << myPtr.at(j)->fname << endl;
+                        //delete myPtr.at(j);
+                        //myPtr.erase((myPtr.begin() + (j))); 
+                    }
                 }
-            }
-            for (int i =0; i < curr->children.size(); ++i) {
-                cout << curr->children.at(i)->fname << endl;
-            }
+                //for (int i = 0; i < myPtr.size(); ++i) {
+                //    cout << myPtr.at(i)->fname << endl;
+                //}
+                //cout << "Size: " << myPtr.size() << endl;
+            }  
         }
 };
 
@@ -197,11 +235,19 @@ class resize : public Visitor {
 
 */
 class myExit : public Visitor {
-    resize *deleteFiles;
     public:
+        deletefd deleteOperations;
+        scriptParser *builder;
+        vector <string> testing;
+        void addFilestoDelete (string stringtest) {
+            deleteOperations.filesToDelete.push_back(stringtest);
+        }
         void visit(fileSystem*) {
-            // pretend to jump out...del doesnt occur until user uses exit command
-            // current idea: keep all nodes in a container and delete them when exit is called
+            cout << "About to pass the virtual proxy" << endl;
+            for (int i = 0; i < testing.size(); ++i) {
+                addFilestoDelete(testing.at(i));
+            }
+            builder->accept(&deleteOperations);
         }
 };
 
@@ -217,6 +263,7 @@ class Director { //director
         list lsOperation;
         resize resizeOperation;
         myExit exitOperation;
+        vector <string> userFiles;
         void setBuilder (scriptParser *newBuilder) {
             builder = newBuilder;
             ifstream myfile;
@@ -242,8 +289,13 @@ class Director { //director
                         builder->changeDirectory(tempname);
                     }
                     else if (command == "del") {
-                        deleteOperation.fdname=tempname;
-                        builder->accept(&deleteOperation);
+                        // user will attempt to delete it wont occur until
+                        // user calls exit
+                        //userFiles.push_back(tempname);
+                        //cout << tempname << endl;
+                        //deleteOperation.addFilestoDelete(tempname);
+                        exitOperation.testing.push_back(tempname);
+                        //builder->accept(&deleteOperation);
                     }
                     else if (command == "size") {
                         sizeOperation.fdname = tempname;
@@ -260,7 +312,9 @@ class Director { //director
                         builder->accept(&resizeOperation);
                     }
                     else if (command == "exit") {
-
+                        cout << "Exit command was passed" << endl;
+                        exitOperation.builder = newBuilder;
+                        builder->accept(&exitOperation);
                     }
                 }
             myfile.close();
