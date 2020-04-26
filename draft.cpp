@@ -3,10 +3,14 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <queue>
+
+
+// All commented code will be related  to the lines after the comment
 
 using namespace std;
 
-// My parser will retrieve the commands and constructs object using Builder interface
+// Each file and directory is represented as a node.
 struct node {
     string fname;
     int fsize;
@@ -15,8 +19,9 @@ struct node {
     bool isDirectory;
 };
 
+// Different structures depending on 
 struct node *newdirectory(string name) {
-    struct node *tmp = new struct node(); // declaring and allocating new file
+    struct node *tmp = new struct node(); 
     tmp -> fname = name; 
     tmp -> parent = NULL;
     tmp -> isDirectory = true;
@@ -33,6 +38,30 @@ struct node *newfile(string name, int size) {
 
 struct node *root = newdirectory("root");
 node *curr = root; // current pointer to track where user is at
+
+// just return a pointer to the node.
+node *traverseTree (node *root, string traverseString) {
+    queue < node *> myqueue;
+    myqueue.push(root);
+    while (!myqueue.empty()) {
+        int temp = myqueue.size();
+        while ( temp > 0 ) {
+            node *tmp = myqueue.front();
+            myqueue.pop();
+            if (tmp->fname != traverseString){
+                for (int i =0; i < tmp->children.size(); ++i) {
+                    if (tmp->children.at(i)->fname == traverseString) {
+                        return tmp;
+                    }
+                }
+            } 
+            for (int i =0; i < tmp->children.size(); ++i) {
+                myqueue.push(tmp->children.at(i));
+            }
+            --temp;
+        }
+    }
+}
 
 class scriptParser { // builder
     public:
@@ -71,7 +100,7 @@ class fileSystem: public scriptParser {
         void changeDirectory(string name) { //
             // second case, cd ..., set curr to a child
             cout<< "you're attempting to change into: " << name << endl;
-            if (name != "") {
+            if (name != "..") {
                 for (int i =0; i < curr->children.size(); ++i) {
                     if (curr->children.at(i)->fname == name) {
                         curr->children.at(i)->parent = curr;
@@ -96,22 +125,36 @@ class fileSystem: public scriptParser {
 class Visitor {
     public:
         virtual void visit(fileSystem*) = 0;
+    protected:
 };
 
-class deletefd : public Visitor { // TO DO: Delete file AND cascade delete 
+class deletefd : public Visitor { // TO DO: Delete file AND cascade delete, update to delete from filesTODelete vector.
     public:
         string fdname;
+        vector <string> filesToDelete;
+        void addFilestoDelete (string &myFiles) {
+            filesToDelete.push_back(myFiles);
+            cout << myFiles <<endl;
+        }
         void visit (fileSystem*) {
-            cout<< "hi you're passing fdname: " << fdname << endl;
-        // delete fd algorithm??
-            for (int i =0; i < curr->children.size(); ++i) {
-                if (curr->children.at(i)->fname == fdname) {
-                    curr->children.erase(curr->children.begin() + i);
+            cout<< "hi you're passing fdname: " << filesToDelete.size() << endl;
+            for (int i =0; i < filesToDelete.size(); ++i) {
+                cout << "Passed first for loop" << endl;
+                node *myPtr = traverseTree(root,filesToDelete.at(i));
+                for (int j=0; j< myPtr->children.size(); ++j) {
+                    cout << "Passed second for loop and traverse" << endl;
+                    if (myPtr->children.at(j)->fname == filesToDelete.at(i)) {
+                        cout << "Found string to delete: " << myPtr->children.at(j)->fname << endl;
+                        myPtr->children.erase(myPtr->children.begin() + j);
+                        //delete myPtr.at(j);
+                        //myPtr.erase((myPtr.begin() + (j))); 
+                    }
                 }
-            }
-            for (int i =0; i < curr->children.size(); ++i) {
-                cout << curr->children.at(i)->fname << endl;
-            }
+                //for (int i = 0; i < myPtr.size(); ++i) {
+                //    cout << myPtr.at(i)->fname << endl;
+                //}
+                //cout << "Size: " << myPtr.size() << endl;
+            }  
         }
 };
 
@@ -197,17 +240,114 @@ class resize : public Visitor {
 
 */
 class myExit : public Visitor {
-    resize *deleteFiles;
     public:
+        deletefd deleteOperations;
+        scriptParser *builder;
+        vector <string> testing;
+        void addFilestoDelete (string stringtest) {
+            deleteOperations.filesToDelete.push_back(stringtest);
+        }
         void visit(fileSystem*) {
-            // pretend to jump out...del doesnt occur until user uses exit command
-            // current idea: keep all nodes in a container and delete them when exit is called
+            cout << "About to pass the virtual proxy" << endl;
+            for (int i = 0; i < testing.size(); ++i) {
+                addFilestoDelete(testing.at(i));
+            }
+            builder->accept(&deleteOperations);
         }
 };
 
 void fileSystem::accept(Visitor *v) {
     v->visit(this);
 }
+
+// target
+class TreeDisplay {
+    public:
+        void display () {
+            queue < node *> myqueue;
+            myqueue.push(root);
+            while (!myqueue.empty()) {
+                int temp = myqueue.size();
+                while ( temp > 0 ) {
+                    node *tmp = myqueue.front();
+                    myqueue.pop();
+                    if (tmp->isDirectory) {
+                        cout << tmp-> fname << " ";
+                    }
+                    else {
+                        cout << tmp->fname << " " << "size: " << tmp->fsize << " ";
+                    }
+                    for (int i =0; i < tmp->children.size(); ++i) {
+                        myqueue.push(tmp->children.at(i));
+                    }
+                    --temp;
+                }
+                cout << endl;
+            }
+        }
+};
+// Adapter, derived from target and contains obj of adaptee
+// I
+class DirectoryTreeDisplay : public TreeDisplay, private fileSystem{
+    public:
+    virtual void adaptdisplay (){
+        display();
+    }
+    virtual ~DirectoryTreeDisplay() {}
+    virtual void displayDecorator() =0;
+};
+
+// d
+class testing: public DirectoryTreeDisplay {
+    private:
+        DirectoryTreeDisplay *testptr;
+    public: 
+        testing(DirectoryTreeDisplay *test) {  
+            testptr = test;
+        }
+        ~testing() {
+            delete testptr;
+        }
+        void displayDecorator() {
+            testptr->displayDecorator();
+        }
+};
+//A
+class treeHeader: public DirectoryTreeDisplay {
+    public:
+    //treeHeader(TreeDisplay myTree) {
+    //    myTree.display();
+    //}
+        void displayDecorator() {
+            cout<< endl << "Your artifical file system: " << endl << endl;
+            adaptdisplay();
+        }
+};
+//x
+class theFooter: public testing {
+    public:
+        theFooter(DirectoryTreeDisplay *myTree) :testing(myTree){} 
+        void displayDecorator() {
+            testing::displayDecorator();
+            cout<< endl << "This is the end of your file system. :~) " << endl;
+        }
+};
+
+class myObserver {
+    public:
+        virtual void update () = 0;
+};
+
+class resizeObserver : public myObserver {
+        DirectoryTreeDisplay *displayfunction;
+    public:
+        resizeObserver(DirectoryTreeDisplay *displayresize) {
+            displayfunction = displayresize;
+        }
+        void update() {
+            displayfunction->display();
+        }
+};
 
 class Director { //director
        scriptParser *builder;
@@ -217,6 +357,7 @@ class Director { //director
         list lsOperation;
         resize resizeOperation;
         myExit exitOperation;
+        vector <string> userFiles;
         void setBuilder (scriptParser *newBuilder) {
             builder = newBuilder;
             ifstream myfile;
@@ -225,7 +366,7 @@ class Director { //director
             myfile.open("script1.txt");
             if (myfile) {
                 cout<< "File is being read." << endl;
-                while (getline(myfile,line)){//.eof()) {
+                while (getline(myfile,line)){
                     substring.clear();
                     string command, tempname;
                     int filesize = 0;
@@ -242,8 +383,7 @@ class Director { //director
                         builder->changeDirectory(tempname);
                     }
                     else if (command == "del") {
-                        deleteOperation.fdname=tempname;
-                        builder->accept(&deleteOperation);
+                        exitOperation.testing.push_back(tempname);
                     }
                     else if (command == "size") {
                         sizeOperation.fdname = tempname;
@@ -257,10 +397,19 @@ class Director { //director
                         substring >>filesize;
                         resizeOperation.newsize = filesize;
                         resizeOperation.fdname = tempname;
+                        DirectoryTreeDisplay *file;
+                        resizeObserver resizedisplay(file);
                         builder->accept(&resizeOperation);
+                        resizedisplay.update();
                     }
                     else if (command == "exit") {
-
+                        cout << "Exit command was passed" << endl;
+                        exitOperation.builder = newBuilder;
+                        builder->accept(&exitOperation);
+                    }
+                    else if (command == "display") {
+                        DirectoryTreeDisplay *start = new theFooter(new treeHeader);
+                        start->displayDecorator();
                     }
                 }
             myfile.close();
