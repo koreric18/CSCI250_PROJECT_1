@@ -1,2 +1,2 @@
-# CSCI250_PROJECT_1
+# CSCI250 - Design Patterns Project
 Design patterns project
